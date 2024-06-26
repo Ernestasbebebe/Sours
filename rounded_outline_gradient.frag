@@ -1,31 +1,34 @@
 #version 120
 
+uniform vec2 size;
 uniform float round;
 uniform float thickness;
-uniform vec2 size;
-uniform vec4 colorTopLeft;
-uniform vec4 colorTopRight;
-uniform vec4 colorBottomLeft;
-uniform vec4 colorBottomRight;
-
-float alpha(vec2 d, vec2 d1) {
-    vec2 v = abs(d) - d1 + round;
-    return min(max(v.x, v.y), 0.0) + length(max(v, .0f)) - round;
-}
-
-vec4 gradient(vec2 coord, vec2 size, vec4 colorTL, vec4 colorTR, vec4 colorBL, vec4 colorBR) {
-    float tX = coord.x / size.x;
-    float tY = coord.y / size.y;
-
-    vec4 topColor = mix(colorTL, colorTR, tX);
-    vec4 bottomColor = mix(colorBL, colorBR, tX);
-    return mix(bottomColor, topColor, tY);
-}
+uniform vec4 colorTL;
+uniform vec4 colorTR;
+uniform vec4 colorBL;
+uniform vec4 colorBR;
 
 void main() {
-    vec2 centre = .5f * size;
-    vec2 smoothness = vec2(thickness - 1.5f, thickness);
-    float alphaValue = 1.0 - smoothstep(smoothness.x, smoothness.y, abs(alpha(centre - (gl_TexCoord[0].st * size), centre - thickness)));
-    vec4 gradientColor = gradient(gl_TexCoord[0].st * size, size, colorTopLeft, colorTopRight, colorBottomLeft, colorBottomRight);
-    gl_FragColor = vec4(gradientColor.rgb, gradientColor.a * alphaValue);
+    vec2 uv = gl_TexCoord[0].st * size;
+    float radius = round / 2.0;
+
+    vec4 color;
+    if (uv.x < size.x / 2.0 && uv.y < size.y / 2.0) {
+        color = colorTL;
+    } else if (uv.x >= size.x / 2.0 && uv.y < size.y / 2.0) {
+        color = colorTR;
+    } else if (uv.x < size.x / 2.0 && uv.y >= size.y / 2.0) {
+        color = colorBL;
+    } else {
+        color = colorBR;
+    }
+
+    float dist = length(max(abs(uv - vec2(size.x / 2.0, size.y / 2.0)) - vec2(size.x / 2.0 - radius, size.y / 2.0 - radius), 0.0));
+    if (dist < radius) {
+        gl_FragColor = color;
+    } else if (dist < radius + thickness) {
+        gl_FragColor = mix(color, vec4(0.0), smoothstep(radius, radius + thickness, dist));
+    } else {
+        discard;
+    }
 }
