@@ -1,24 +1,36 @@
 #version 120
 
-uniform vec4 round; // Закругления для четырех углов: левый верхний, правый верхний, правый нижний, левый нижний
+uniform vec4 roundlt; // Радиус округления для левого верхнего угла
+uniform vec4 roundrt; // Радиус округления для правого верхнего угла
+uniform vec4 roundld; // Радиус округления для левого нижнего угла
+uniform vec4 roundrd; // Радиус округления для правого нижнего угла
 uniform vec2 size;
 uniform vec4 color;
 
-float alpha(vec2 d, vec2 d1) {
-    vec2 v1 = abs(d) - d1 + vec2(round.x, round.y);
-    vec2 v2 = abs(d) - d1 + vec2(round.z, round.y);
-    vec2 v3 = abs(d) - d1 + vec2(round.z, round.w);
-    vec2 v4 = abs(d) - d1 + vec2(round.x, round.w);
-    
-    float a1 = min(max(v1.x, v1.y), 0.0) + length(max(v1, .0f)) - round.x;
-    float a2 = min(max(v2.x, v2.y), 0.0) + length(max(v2, .0f)) - round.z;
-    float a3 = min(max(v3.x, v3.y), 0.0) + length(max(v3, .0f)) - round.z;
-    float a4 = min(max(v4.x, v4.y), 0.0) + length(max(v4, .0f)) - round.x;
-    
-    return min(min(a1, a2), min(a3, a4));
+float alpha(vec2 d, vec2 d1, vec4 round) {
+    vec2 v = abs(d) - d1 + round.xy;  // Используем только x и y компоненты для округления
+    return min(max(v.x, v.y), 0.0) + length(max(v, vec2(0.0))) - round.x; // Используем только x компоненту для округления
 }
 
 void main() {
-    vec2 centre = .5f * size;
-    gl_FragColor = vec4(color.rgb, color.a * (1.f - smoothstep(0.f, 1.5f, alpha(centre - (gl_TexCoord[0].st * size), centre - 1.f))));
+    vec2 centre = 0.5 * size;
+    vec2 pos = gl_TexCoord[0].st * size - centre; // Позиция фрагмента относительно центра
+
+    // Расстояния до углов
+    vec2 distLT = abs(pos - vec2(-centre.x, centre.y)); // Левый верхний угол
+    vec2 distRT = abs(pos - vec2(centre.x, centre.y));  // Правый верхний угол
+    vec2 distLD = abs(pos - vec2(-centre.x, -centre.y)); // Левый нижний угол
+    vec2 distRD = abs(pos - vec2(centre.x, -centre.y));  // Правый нижний угол
+
+    // Вычисление альфы для каждого угла
+    float alphaLT = alpha(distLT, roundlt.xy, roundlt); 
+    float alphaRT = alpha(distRT, roundrt.xy, roundrt);
+    float alphaLD = alpha(distLD, roundld.xy, roundld);
+    float alphaRD = alpha(distRD, roundrd.xy, roundrd);
+
+    // Выбор наименьшего значения из альф для конечного результата
+    float finalAlpha = min(min(alphaLT, alphaRT), min(alphaLD, alphaRD));
+
+    // Цвет с учётом альфы
+    gl_FragColor = vec4(color.rgb, color.a * (1.0 - smoothstep(0.0, 1.5, finalAlpha)));
 }
