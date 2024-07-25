@@ -12,17 +12,6 @@ float alpha(vec2 d, vec2 d1, float round) {
     return min(max(v.x, v.y), 0.0) + length(max(v, vec2(0.0))) - round;
 }
 
-vec4 blur(vec2 uv) {
-    float blurSize = 1.0 / size.x; // Размер размытия
-    vec4 sum = vec4(0.0);
-    for (int x = -2; x <= 2; x++) {
-        for (int y = -2; y <= 2; y++) {
-            sum += texture2DRect(gl_TextureRect[0], uv + vec2(x, y) * blurSize);
-        }
-    }
-    return sum / 25.0; // 25 выборок
-}
-
 void main() {
     vec2 coord = gl_FragCoord.xy;
     vec2 centre = .5f * size;
@@ -42,6 +31,14 @@ void main() {
         alphaValue = alpha(coord - centre, centre - 1.f, roundrd.x);
     }
 
-    vec4 blurredColor = blur(coord);
+    // Create a simple blur effect using neighboring pixels
+    vec4 blurredColor = vec4(0.0);
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            blurredColor += texture2DRect(gl_TextureRect[0], gl_FragCoord.xy + vec2(x, y));
+        }
+    }
+    blurredColor /= 9.0; // Average of 9 samples
+
     gl_FragColor = mix(color, blurredColor, smoothstep(0.f, 1.5f, alphaValue));
 }
