@@ -1,26 +1,35 @@
 #version 120
 
-uniform float roundlt; // Радиус округления для левого верхнего угла
-uniform float roundrt; // Радиус округления для правого верхнего угла
-uniform float roundld; // Радиус округления для левого нижнего угла
-uniform float roundrd; // Радиус округления для правого нижнего угла
+uniform vec4 roundlt;
+uniform vec4 roundrt;
+uniform vec4 roundld;
+uniform vec4 roundrd;
 uniform vec2 size;
 uniform vec4 color;
 
-float alpha(vec2 p, vec2 center, float radius) {
-    vec2 d = abs(p - center) - radius;
-    return length(max(d, 0.0)) - radius;
+float alpha(vec2 d, vec2 d1, vec4 round) {
+    vec2 v = abs(d) - d1 + vec2(round.x, round.y);
+    return min(max(v.x, v.y), 0.0) + length(max(v, .0f)) - max(round.x, round.y);
 }
 
 void main() {
-    vec2 pos = gl_FragCoord.xy;
-    vec2 lt = vec2(roundlt, size.y - roundlt);
-    vec2 rt = vec2(size.x - roundrt, size.y - roundrt);
-    vec2 ld = vec2(roundld, roundld);
-    vec2 rd = vec2(size.x - roundrd, roundrd);
+    vec2 coord = gl_TexCoord[0].st * size;
+    vec2 centre = .5f * size;
+    float alphaValue;
 
-    float a = min(min(alpha(pos, lt, roundlt), alpha(pos, rt, roundrt)), min(alpha(pos, ld, roundld), alpha(pos, rd, roundrd)));
+    if (coord.x < centre.x && coord.y < centre.y) {
+        // Top-left corner
+        alphaValue = alpha(centre - coord, centre - 1.f, roundlt);
+    } else if (coord.x >= centre.x && coord.y < centre.y) {
+        // Top-right corner
+        alphaValue = alpha(coord - centre, centre - 1.f, roundrt);
+    } else if (coord.x < centre.x && coord.y >= centre.y) {
+        // Bottom-left corner
+        alphaValue = alpha(centre - coord, centre - 1.f, roundld);
+    } else {
+        // Bottom-right corner
+        alphaValue = alpha(coord - centre, centre - 1.f, roundrd);
+    }
 
-    float finalAlpha = 1.0 - smoothstep(0.0, 1.0, a);
-    gl_FragColor = vec4(color.rgb, color.a * finalAlpha);
+    gl_FragColor = vec4(color.rgb, color.a * (1.f - smoothstep(0.f, 1.5f, alphaValue)));
 }
